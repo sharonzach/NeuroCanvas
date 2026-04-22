@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>OCULUS · Neural Gaze Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ════════════════════════════════════════
+   DESIGN TOKENS
+════════════════════════════════════════ */
+:root{
+  --bg:     #00070f;
+  --s1:     #030d18;
+  --s2:     #061220;
+  --s3:     #091828;
+  --cyan:   #00e5ff;
+  --cyan2:  #00fff5;
+  --violet: #a855f7;
+  --green:  #00ff88;
+  --amber:  #fbbf24;
+  --red:    #f43f5e;
+  --blue:   #60a5fa;
+  --lime:   #a3e635;
+  --pink:   #f472b6;
+  --text:   #c8e8f8;
+  --muted:  #2a607f;
+  --dim:    #0b1f30;
+  --border: rgba(0,229,255,.12);
+  --bord2:  rgba(0,229,255,.30);
+  --ff-h:   'Orbitron',monospace;
+  --ff-u:   'Rajdhani',sans-serif;
+  --ff-d:   'Share Tech Mono',monospace;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--ff-u);
+  height:100vh;
+  overflow:hidden;
+  cursor:crosshair;
+}
+
+/* ════════════════════════════════════════
+   BACKGROUND EFFECTS
+════════════════════════════════════════ */
+body::before{
+  content:'';
+  position:fixed;inset:0;z-index:0;
+  background:
+    radial-gradient(ellipse 110% 70% at -5% 5%,  rgba(0,90,160,.22) 0%,transparent 55%),
+    radial-gradient(ellipse 90% 110% at 105% 95%,rgba(130,0,210,.18) 0%,transparent 55%),
+    radial-gradient(ellipse 60% 60% at 50% 50%,  rgba(0,200,255,.04) 0%,transparent 65%);
+  animation:bgBreath 12s ease-in-out infinite alternate;
+  pointer-events:none;
+}
+@keyframes bgBreath{from{opacity:.65}to{opacity:1}}
+body::after{
+  content:'';
+  position:fixed;inset:0;z-index:1;
+  background-image:
+    linear-gradient(rgba(0,229,255,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,229,255,.025) 1px,transparent 1px);
+  background-size:50px 50px;
+  pointer-events:none;
+}
+#scanline{
+  position:fixed;top:0;left:0;right:0;height:2px;z-index:9999;
+  background:linear-gradient(90deg,transparent,rgba(0,229,255,.2),transparent);
+  animation:scanMove 4.5s linear infinite;
+  pointer-events:none;
+}
+@keyframes scanMove{0%{top:0;opacity:0}5%{opacity:1}95%{opacity:1}100%{top:100vh;opacity:0}}
+
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--cyan);border-radius:2px}
+
+/* ════════════════════════════════════════
+   ── LANDING SCREEN ──
+════════════════════════════════════════ */
+#landing{
+  position:fixed;inset:0;z-index:500;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  background:var(--bg);
+  transition:opacity .8s ease, transform .8s ease;
+}
+#landing.hide{
+  opacity:0;transform:scale(1.04);pointer-events:none;
+}
+
+/* eye iris animation */
+.boot-eye{
+  position:relative;
+  width:120px;height:120px;
+  margin-bottom:36px;
+}
+.iris-ring{
+  position:absolute;inset:0;
+  border-radius:50%;
+  border:2px solid transparent;
+  animation:irisRotate 4s linear infinite;
+}
+.iris-ring:nth-child(1){
+  border-top-color:var(--cyan);
+  border-right-color:var(--cyan);
+  animation-duration:3s;
+}
+.iris-ring:nth-child(2){
+  inset:12px;
+  border-bottom-color:var(--violet);
+  border-left-color:var(--violet);
+  animation-duration:2s;
+  animation-direction:reverse;
+}
+.iris-ring:nth-child(3){
+  inset:24px;
+  border-top-color:var(--green);
+  animation-duration:5s;
+}
+.iris-core{
+  position:absolute;
+  inset:36px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(0,229,255,.3) 0%,rgba(0,229,255,.05) 60%,transparent 100%);
+  border:1px solid var(--bord2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.6rem;
+  filter:drop-shadow(0 0 14px var(--cyan));
+  animation:corePulse 2s ease-in-out infinite;
+}
+@keyframes irisRotate{to{transform:rotate(360deg)}}
+@keyframes corePulse{
+  0%,100%{box-shadow:0 0 20px rgba(0,229,255,.3)}
+  50%    {box-shadow:0 0 40px rgba(0,229,255,.6)}
+}
+
+.boot-title{
+  font-family:var(--ff-h);
+  font-size:3rem;font-weight:900;
+  letter-spacing:.4em;
+  color:var(--cyan);
+  text-shadow:0 0 40px rgba(0,229,255,.6),0 0 80px rgba(0,229,255,.2);
+  margin-bottom:6px;
+}
+.boot-subtitle{
+  font-family:var(--ff-d);
+  font-size:.65rem;
+  letter-spacing:.35em;
+  color:var(--muted);
+  margin-bottom:48px;
+}
+
+/* boot log terminal */
+.boot-terminal{
+  width:520px;
+  background:rgba(3,13,24,.9);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:20px 24px;
+  min-height:160px;
+  max-height:260px;
+  overflow-y:auto;
+  position:relative;
+}
+.boot-terminal::before{
+  content:'SYS INIT';
+  position:absolute;top:10px;right:14px;
+  font-family:var(--ff-d);font-size:.5rem;
+  letter-spacing:.3em;color:var(--muted);
+}
+.boot-line{
+  display:flex;align-items:flex-start;gap:10px;
+  font-family:var(--ff-d);font-size:.72rem;
+  line-height:1.7;
+  animation:bootFadeIn .3s ease;
+}
+@keyframes bootFadeIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:translateX(0)}}
+.boot-prefix{color:var(--muted);flex-shrink:0}
+.boot-msg-ok   {color:var(--text)}
+.boot-msg-error{color:var(--red)}
+.boot-msg-ready{color:var(--green);font-weight:700}
+.boot-cursor{
+  display:inline-block;width:8px;height:14px;
+  background:var(--cyan);
+  animation:blink .7s step-start infinite;
+  vertical-align:middle;margin-left:4px;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* launch button */
+.launch-btn{
+  margin-top:32px;
+  display:none;
+  padding:14px 48px;
+  font-family:var(--ff-h);
+  font-size:.85rem;font-weight:700;
+  letter-spacing:.25em;
+  color:var(--bg);
+  background:var(--cyan);
+  border:none;border-radius:4px;
+  cursor:pointer;
+  text-transform:uppercase;
+  box-shadow:0 0 30px rgba(0,229,255,.5),0 0 60px rgba(0,229,255,.2);
+  transition:transform .2s,box-shadow .2s;
+  position:relative;overflow:hidden;
+}
+.launch-btn::before{
+  content:'';
+  position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.25),transparent);
+  transform:translateX(-100%);
+  transition:transform .5s;
+}
+.launch-btn:hover::before{transform:translateX(100%)}
+.launch-btn:hover{transform:translateY(-2px);box-shadow:0 0 40px rgba(0,229,255,.7),0 0 80px rgba(0,229,255,.3)}
+.launch-btn:active{transform:translateY(0)}
+
+/* ════════════════════════════════════════
+   ── MAIN DASHBOARD ──
+════════════════════════════════════════ */
+#dashboard{
+  position:relative;z-index:10;
+  display:none;flex-direction:column;
+  height:100vh;
+  opacity:0;transition:opacity .7s ease;
+}
+#dashboard.show{display:flex;opacity:1}
+
+/* ── HEADER ── */
+header{
+  position:sticky;top:0;z-index:200;
+  height:68px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 32px;
+  background:rgba(0,7,16,.97);
+  border-bottom:1px solid var(--bord2);
+  backdrop-filter:blur(20px);
+  overflow:hidden;
+  flex-shrink:0;
+}
+header::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,
+    transparent 0%,rgba(0,229,255,.05) 25%,
+    transparent 50%,rgba(168,85,247,.04) 80%,transparent 100%);
+  animation:hdrShimmer 6s linear infinite;
+}
+@keyframes hdrShimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+
+.hdr-left{display:flex;flex-direction:column;position:relative;z-index:2}
+.logo{
+  font-family:var(--ff-h);font-size:1.6rem;font-weight:900;
+  letter-spacing:.35em;color:var(--cyan);
+  text-shadow:0 0 30px rgba(0,229,255,.6),0 0 60px rgba(0,229,255,.2);
+}
+.logo-sub{
+  font-family:var(--ff-d);font-size:.5rem;
+  letter-spacing:.4em;color:var(--muted);margin-top:2px;
+}
+.hdr-center{
+  position:absolute;left:50%;transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;z-index:2;
+}
+.eye-icon{
+  font-size:1.8rem;
+  filter:drop-shadow(0 0 16px var(--cyan));
+  animation:eyePulse 2.5s ease-in-out infinite;
+}
+@keyframes eyePulse{
+  0%,100%{transform:scale(1);filter:drop-shadow(0 0 16px var(--cyan))}
+  50%{transform:scale(1.18);filter:drop-shadow(0 0 32px var(--cyan))}
+}
+.hdr-tagline{font-family:var(--ff-d);font-size:.52rem;letter-spacing:.28em;color:var(--muted);margin-top:3px}
+.hdr-right{display:flex;align-items:center;gap:12px;position:relative;z-index:2}
+.badge{
+  font-family:var(--ff-d);font-size:.6rem;
+  letter-spacing:.18em;padding:5px 13px;
+  border:1px solid;border-radius:3px;
+  text-transform:uppercase;cursor:default;
+}
+.badge-model {color:var(--violet);border-color:rgba(168,85,247,.4);background:rgba(168,85,247,.07)}
+.badge-live  {color:var(--green); border-color:rgba(0,255,136,.4);  background:rgba(0,255,136,.06);
+              display:flex;align-items:center;gap:7px;text-shadow:0 0 12px var(--green)}
+.live-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 10px var(--green),0 0 20px var(--green);
+  animation:liveBlink .9s ease-in-out infinite;
+}
+@keyframes liveBlink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.2;transform:scale(.5)}}
+
+/* STOP button */
+#stopBtn{
+  font-family:var(--ff-h);font-size:.62rem;font-weight:700;
+  letter-spacing:.18em;padding:7px 18px;
+  border:1px solid rgba(244,63,94,.6);border-radius:3px;
+  color:var(--red);background:rgba(244,63,94,.08);
+  cursor:pointer;text-transform:uppercase;
+  transition:background .2s,box-shadow .2s,transform .15s;
+}
+#stopBtn:hover{background:rgba(244,63,94,.18);box-shadow:0 0 20px rgba(244,63,94,.35);transform:translateY(-1px)}
+#stopBtn:active{transform:translateY(0)}
+#stopBtn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+
+/* ── STAT BAR ── */
+.stat-bar{
+  display:grid;grid-template-columns:repeat(5,1fr);
+  border-bottom:1px solid var(--border);
+  background:rgba(3,11,22,.8);
+  flex-shrink:0;
+}
+.stat-cell{
+  padding:10px 22px;border-right:1px solid var(--border);
+  position:relative;overflow:hidden;
+}
+.stat-cell::after{
+  content:'';position:absolute;top:0;left:0;width:100%;height:2px;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+  transform:translateX(-110%);
+  animation:statScan 5s ease-in-out infinite;
+  animation-delay:calc(var(--i,0)*.7s);
+}
+@keyframes statScan{
+  0%{transform:translateX(-110%);opacity:0}15%{opacity:1}
+  85%{opacity:1}100%{transform:translateX(110%);opacity:0}
+}
+.stat-label{
+  font-family:var(--ff-d);font-size:.5rem;letter-spacing:.22em;
+  color:var(--muted);text-transform:uppercase;margin-bottom:4px;
+}
+.stat-value{
+  font-family:var(--ff-h);font-size:1.45rem;font-weight:700;
+  color:var(--cyan);text-shadow:0 0 18px rgba(0,229,255,.4);line-height:1;
+}
+.stat-unit{font-family:var(--ff-d);font-size:.6rem;color:var(--muted);margin-left:4px}
+
+/* ── MAIN GRID ── */
+.main-grid{
+  display:grid;grid-template-columns:320px 1fr 350px;
+  flex:1;
+  min-height:0;  /* critical — lets flex children shrink below content size */
+  border-top:1px solid var(--border);
+  overflow:hidden;
+}
+.panel{
+  padding:22px 20px;border-right:1px solid var(--border);
+  background:rgba(4,12,22,.6);backdrop-filter:blur(6px);
+  overflow-y:auto;
+  height:100%;
+}
+.panel-mid{
+  padding:22px 24px;
+  background:rgba(2,8,18,.5);backdrop-filter:blur(6px);
+  overflow-y:auto;
+  height:100%;
+}
+.panel-right{
+  padding:22px 20px;border-left:1px solid var(--border);
+  background:rgba(4,12,22,.6);backdrop-filter:blur(6px);
+  overflow-y:auto;
+  height:100%;
+}
+.sec-label{
+  font-family:var(--ff-d);font-size:.56rem;letter-spacing:.3em;
+  color:var(--cyan);text-transform:uppercase;margin-bottom:12px;
+  display:flex;align-items:center;gap:10px;
+}
+.sec-label::before{content:'▸';opacity:.65;font-size:.65rem}
+.sec-label::after{content:'';flex:1;height:1px;
+  background:linear-gradient(90deg,var(--bord2),transparent)}
+
+/* ── EMOTION CARD ── */
+.emotion-card{
+  position:relative;border-radius:6px;
+  padding:20px 20px 18px;margin-bottom:16px;
+  overflow:hidden;text-align:center;
+  background:
+    radial-gradient(ellipse at 50% 0%,rgba(0,200,255,.1) 0%,transparent 65%),
+    linear-gradient(180deg,#04101e,#020c16);
+  border:1px solid var(--border);
+  transition:border-color .4s,box-shadow .4s;
+}
+.ec-corner{position:absolute;width:18px;height:18px;border-color:var(--cyan);border-style:solid;opacity:.45}
+.ec-corner.tl{top:8px;left:8px;border-width:1px 0 0 1px}
+.ec-corner.tr{top:8px;right:8px;border-width:1px 1px 0 0}
+.ec-corner.bl{bottom:8px;left:8px;border-width:0 0 1px 1px}
+.ec-corner.br{bottom:8px;right:8px;border-width:0 1px 1px 0}
+
+.emo-tag{
+  font-family:var(--ff-d);font-size:.56rem;letter-spacing:.4em;
+  color:var(--muted);text-transform:uppercase;margin-bottom:14px;
+}
+#emotion-name{
+  font-family:var(--ff-h);font-size:2.6rem;font-weight:900;
+  letter-spacing:.1em;line-height:1;margin-bottom:6px;
+  color:var(--cyan);
+  text-shadow:0 0 40px rgba(0,229,255,.6),0 0 80px rgba(0,229,255,.2);
+  transition:color .3s,text-shadow .3s;
+}
+#emo-frame{font-family:var(--ff-d);font-size:.6rem;letter-spacing:.18em;color:var(--muted)}
+.conf-section{margin-top:18px;text-align:left}
+.conf-header{
+  display:flex;justify-content:space-between;
+  font-family:var(--ff-d);font-size:.6rem;letter-spacing:.14em;
+  color:var(--muted);text-transform:uppercase;margin-bottom:7px;
+}
+#conf-pct{font-size:.72rem;font-weight:700;color:var(--cyan);transition:color .35s}
+.conf-track{height:7px;background:var(--dim);border-radius:4px;overflow:hidden}
+#conf-fill{
+  height:100%;width:0%;border-radius:4px;
+  background:linear-gradient(90deg,var(--cyan),var(--cyan2));
+  box-shadow:0 0 14px rgba(0,229,255,.5);
+  transition:width .6s cubic-bezier(.4,0,.2,1),background .4s,box-shadow .4s;
+}
+
+/* ── METRIC TILES ── */
+.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:16px}
+.metric-tile{
+  background:rgba(6,18,32,.85);border:1px solid var(--border);
+  border-radius:5px;padding:10px 14px;
+  position:relative;overflow:hidden;transition:border-color .25s;
+}
+.metric-tile:hover{border-color:var(--bord2)}
+.metric-tile::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+  opacity:0;transition:opacity .25s;
+}
+.metric-tile:hover::after{opacity:1}
+.m-label{font-family:var(--ff-d);font-size:.5rem;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-bottom:4px}
+.m-value{font-family:var(--ff-h);font-size:1.15rem;font-weight:600;color:var(--text);line-height:1}
+.m-unit {font-family:var(--ff-d);font-size:.58rem;color:var(--muted);margin-left:4px}
+
+/* ── GT / STIMULUS ── */
+.gt-block{
+  border:1px solid var(--border);border-left:3px solid var(--violet);
+  border-radius:4px;padding:10px 14px;margin-bottom:8px;
+  background:linear-gradient(90deg,rgba(168,85,247,.07) 0%,transparent 65%);
+}
+.gt-key{font-family:var(--ff-d);font-size:.52rem;letter-spacing:.2em;color:var(--violet);text-transform:uppercase;margin-bottom:4px}
+.gt-val{font-family:var(--ff-h);font-size:.95rem;font-weight:700;letter-spacing:.1em;color:var(--text)}
+
+.stim-block{
+  border:1px solid var(--border);border-left:3px solid var(--amber);
+  border-radius:4px;padding:9px 14px;margin-bottom:16px;
+  background:linear-gradient(90deg,rgba(251,191,36,.05) 0%,transparent 65%);
+}
+.stim-key{font-family:var(--ff-d);font-size:.52rem;letter-spacing:.2em;color:var(--amber);text-transform:uppercase;margin-bottom:3px}
+.stim-val{font-family:var(--ff-d);font-size:.85rem;color:var(--text)}
+
+/* ── FEATURE TABLE ── */
+.feat-table{width:100%;border-collapse:collapse}
+.feat-table th{
+  font-family:var(--ff-d);font-size:.54rem;letter-spacing:.22em;
+  color:var(--cyan);text-transform:uppercase;font-weight:400;
+  padding:7px 11px;border-bottom:1px solid var(--bord2);text-align:left;
+}
+.feat-table td{
+  font-family:var(--ff-d);font-size:.76rem;
+  padding:9px 11px;border-bottom:1px solid rgba(0,229,255,.05);
+  transition:background .2s;
+}
+.feat-table tr:hover td{background:rgba(0,229,255,.04)}
+.td-name{color:var(--muted)}
+.td-val {color:var(--cyan);text-align:right;font-size:.8rem}
+.td-unit{color:var(--dim);font-size:.58rem;width:34px}
+.td-bar {width:65px;padding:9px 9px}
+.mini-bar{height:4px;background:#0b1f30;border-radius:2px;overflow:hidden}
+.mini-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--cyan),var(--cyan2));transition:width .5s ease}
+
+/* ── CHART CONTAINERS ── */
+.chart-wrap{
+  border:1px solid var(--border);border-radius:6px;
+  overflow:hidden;background:rgba(2,7,16,.9);margin-bottom:12px;
+}
+.chart-header{
+  padding:11px 16px 0;font-family:var(--ff-d);font-size:.58rem;
+  letter-spacing:.22em;color:var(--muted);text-transform:uppercase;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.chart-body{padding:10px 10px 8px}
+
+/* ── HEATMAP ── */
+.heatmap-wrap{
+  border:1px solid var(--border);border-radius:6px;
+  overflow:hidden;background:#000;position:relative;margin-bottom:12px;
+}
+.heatmap-wrap::before{
+  content:'FIXATION MAP';position:absolute;top:9px;left:13px;z-index:10;
+  font-family:var(--ff-d);font-size:.52rem;letter-spacing:.28em;
+  color:rgba(0,229,255,.65);text-shadow:0 0 10px rgba(0,229,255,.45);
+}
+.heatmap-wrap img{width:100%;display:block;opacity:.9;border-radius:6px}
+.heatmap-wrap::after{
+  content:'';position:absolute;inset:0;
+  border:1px solid var(--bord2);border-radius:6px;pointer-events:none;
+}
+
+/* ── STOP + DOWNLOAD SECTION ── */
+.action-panel{
+  background:rgba(4,12,22,.85);
+  border:1px solid var(--border);border-radius:6px;
+  padding:18px 20px;
+  position:relative;overflow:hidden;
+}
+.action-panel::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--red),transparent);
+  opacity:.5;
+}
+.action-title{
+  font-family:var(--ff-d);font-size:.58rem;letter-spacing:.28em;
+  color:var(--red);text-transform:uppercase;margin-bottom:14px;
+}
+.action-row{display:flex;gap:10px;flex-direction:column}
+.action-btn{
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  font-family:var(--ff-h);font-size:.62rem;font-weight:700;
+  letter-spacing:.15em;padding:12px 16px;
+  border:1px solid;border-radius:4px;
+  cursor:pointer;text-transform:uppercase;
+  transition:background .2s,box-shadow .2s,transform .15s;
+  text-decoration:none;
+}
+.action-btn:hover{transform:translateY(-1px)}
+.action-btn:active{transform:translateY(0)}
+.btn-stop{
+  color:var(--red);border-color:rgba(244,63,94,.5);
+  background:rgba(244,63,94,.08);
+}
+.btn-stop:hover{background:rgba(244,63,94,.18);box-shadow:0 0 24px rgba(244,63,94,.35)}
+.btn-stop:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+
+.btn-csv{
+  color:var(--green);border-color:rgba(0,255,136,.4);
+  background:rgba(0,255,136,.06);
+}
+.btn-csv:hover{background:rgba(0,255,136,.14);box-shadow:0 0 20px rgba(0,255,136,.3)}
+
+.btn-json{
+  color:var(--amber);border-color:rgba(251,191,36,.4);
+  background:rgba(251,191,36,.06);
+}
+.btn-json:hover{background:rgba(251,191,36,.14);box-shadow:0 0 20px rgba(251,191,36,.3)}
+
+.btn-disabled{
+  color:var(--muted);border-color:rgba(42,96,127,.3);
+  background:rgba(42,96,127,.04);
+  opacity:.45;cursor:not-allowed;pointer-events:none;
+}
+.session-info{
+  font-family:var(--ff-d);font-size:.62rem;color:var(--muted);
+  line-height:1.8;margin-top:14px;
+  border-top:1px solid var(--border);padding-top:12px;
+}
+.session-info span{color:var(--text)}
+
+canvas{display:block;width:100%!important}
+</style>
+</head>
+<body>
+<div id="scanline"></div>
+
+<!-- ════════════════════════════════════════
+     LANDING SCREEN
+════════════════════════════════════════ -->
+<div id="landing">
+  <div class="boot-eye">
+    <div class="iris-ring"></div>
+    <div class="iris-ring"></div>
+    <div class="iris-ring"></div>
+    <div class="iris-core">👁</div>
+  </div>
+  <div class="boot-title">OCULUS</div>
+  <div class="boot-subtitle">Neural Gaze Intelligence System · Initialising</div>
+
+  <div class="boot-terminal" id="bootTerminal">
+    <div class="boot-line" id="connectingLine">
+      <span class="boot-prefix">[SYS]</span>
+      <span class="boot-msg-ok" id="connectingMsg">Connecting to OCULUS server<span class="boot-cursor"></span></span>
+    </div>
+  </div>
+
+  <button class="launch-btn" id="launchBtn" onclick="launchDashboard()">
+    ▶ &nbsp; Launch Dashboard
+  </button>
+</div>
+
+<!-- ════════════════════════════════════════
+     MAIN DASHBOARD
+════════════════════════════════════════ -->
+<div id="dashboard">
+
+  <!-- HEADER -->
+  <header>
+    <div class="hdr-left">
+      <div class="logo">OCULUS</div>
+      <div class="logo-sub">Neural Gaze Intelligence System</div>
+    </div>
+    <div class="hdr-center">
+      <div class="eye-icon">👁</div>
+      <div class="hdr-tagline">Real-Time Eye Gaze → Emotion Mapping</div>
+    </div>
+    <div class="hdr-right">
+      <div class="badge badge-model">XGBoost · v2.1</div>
+      <div class="badge badge-live" id="liveStatus">
+        <div class="live-dot"></div>LIVE
+      </div>
+      <button class="badge" id="stopBtn" onclick="stopRecording()">⬛ Stop</button>
+    </div>
+  </header>
+
+  <!-- STAT BAR -->
+  <div class="stat-bar">
+    <div class="stat-cell" style="--i:0">
+      <div class="stat-label">Total Frames</div>
+      <div class="stat-value" id="s-frames">—</div>
+    </div>
+    <div class="stat-cell" style="--i:1">
+      <div class="stat-label">Feature Dims</div>
+      <div class="stat-value">6<span class="stat-unit">feat</span></div>
+    </div>
+    <div class="stat-cell" style="--i:2">
+      <div class="stat-label">Window Size</div>
+      <div class="stat-value">30<span class="stat-unit">samp</span></div>
+    </div>
+    <div class="stat-cell" style="--i:3">
+      <div class="stat-label">Classes</div>
+      <div class="stat-value" id="s-classes">—</div>
+    </div>
+    <div class="stat-cell" style="--i:4">
+      <div class="stat-label">Current Frame</div>
+      <div class="stat-value" id="s-frame">—</div>
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="main-grid">
+
+    <!-- LEFT PANEL -->
+    <div class="panel">
+      <div class="sec-label">Emotion Output</div>
+      <div class="emotion-card" id="emotion-card">
+        <div class="ec-corner tl"></div><div class="ec-corner tr"></div>
+        <div class="ec-corner bl"></div><div class="ec-corner br"></div>
+        <div class="emo-tag">▸ DETECTED AFFECT STATE</div>
+        <div id="emotion-name">—</div>
+        <div id="emo-frame">awaiting stream…</div>
+        <div class="conf-section">
+          <div class="conf-header">
+            <span>Confidence</span>
+            <span id="conf-pct">0%</span>
+          </div>
+          <div class="conf-track"><div id="conf-fill"></div></div>
+        </div>
+      </div>
+
+      <div class="sec-label">Biometric Metrics</div>
+      <div class="metric-grid">
+        <div class="metric-tile">
+          <div class="m-label">Gaze X</div>
+          <div class="m-value"><span id="m-x">—</span><span class="m-unit">norm</span></div>
+        </div>
+        <div class="metric-tile">
+          <div class="m-label">Gaze Y</div>
+          <div class="m-value"><span id="m-y">—</span><span class="m-unit">norm</span></div>
+        </div>
+        <div class="metric-tile" style="border-top:1px solid rgba(168,85,247,.4)">
+          <div class="m-label">Pupil Ø</div>
+          <div class="m-value"><span id="m-pupil">—</span><span class="m-unit">mm</span></div>
+        </div>
+        <div class="metric-tile" style="border-top:1px solid rgba(251,191,36,.4)">
+          <div class="m-label">Saccade</div>
+          <div class="m-value"><span id="m-sacc">—</span><span class="m-unit">u/s</span></div>
+        </div>
+      </div>
+
+      <div class="sec-label">Ground Truth</div>
+      <div class="gt-block">
+        <div class="gt-key">Label</div>
+        <div class="gt-val" id="gt-label">LIVE SESSION</div>
+      </div>
+      <div class="stim-block">
+        <div class="stim-key">Stimulus</div>
+        <div class="stim-val" id="stim-id">—</div>
+      </div>
+
+      <div class="sec-label">Feature Vector</div>
+      <table class="feat-table">
+        <thead><tr><th>Feature</th><th style="text-align:right">Value</th><th>Unit</th><th></th></tr></thead>
+        <tbody id="feat-tbody">
+          <tr><td colspan="4" style="font-family:var(--ff-d);font-size:.7rem;color:var(--muted);padding:14px 11px">
+            Waiting for data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- MID PANEL -->
+    <div class="panel-mid">
+      <div class="sec-label">Emotion Confidence Distribution</div>
+      <div class="chart-wrap">
+        <div class="chart-header">
+          <span>Probability per Class</span>
+          <span id="prob-ts" style="color:var(--muted);font-size:.52rem"></span>
+        </div>
+        <div class="chart-body"><canvas id="probChart" height="160"></canvas></div>
+      </div>
+
+      <div class="sec-label" style="margin-top:4px">Gaze Scanpath Trajectory</div>
+      <div class="chart-wrap">
+        <div class="chart-header">
+          <span>Last 40 Gaze Points</span>
+          <span style="font-size:.52rem">
+            <span style="color:var(--green)">● START</span>
+            &nbsp;&nbsp;
+            <span style="color:var(--red)">✕ END</span>
+          </span>
+        </div>
+        <div class="chart-body"><canvas id="scanCanvas" height="200"></canvas></div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="panel-right">
+      <div class="sec-label">Fixation Heatmap</div>
+      <div class="heatmap-wrap">
+        <img id="heatmap-img" src="" alt="heatmap"/>
+      </div>
+
+      <div class="sec-label" style="margin-top:4px">Session Control</div>
+      <div class="action-panel">
+        <div class="action-title">▸ Recording Controls</div>
+        <div class="action-row">
+          <button class="action-btn btn-stop" id="stopBtn2" onclick="stopRecording()">
+            ⬛ &nbsp; Stop Recording
+          </button>
+          <a class="action-btn btn-csv btn-disabled" id="csvBtn" href="http://localhost:5050/api/report/csv" target="_blank">
+            ↓ &nbsp; Download CSV
+          </a>
+          <a class="action-btn btn-json btn-disabled" id="jsonBtn" href="http://localhost:5050/api/report/json" target="_blank">
+            ↓ &nbsp; Download JSON
+          </a>
+        </div>
+        <div class="session-info" id="sessionInfo">
+          Status &nbsp;›&nbsp; <span id="sess-status">Recording…</span><br>
+          Start &nbsp;&nbsp;›&nbsp; <span id="sess-start">—</span><br>
+          End &nbsp;&nbsp;&nbsp;›&nbsp; <span id="sess-end">—</span><br>
+          Entries &nbsp;›&nbsp; <span id="sess-entries">0</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- main-grid -->
+</div><!-- dashboard -->
+
+<script>
+/* ════════════════════════════════════════
+   CONSTANTS
+════════════════════════════════════════ */
+const API   = 'http://localhost:5050/api/state';
+const BOOT_POLL = 500;   // ms — check boot log during landing
+const LIVE_POLL = 200;   // ms — update dashboard when live
+
+const PALETTE = {
+  happy:    {c:'#00ff88', g:'rgba(0,255,136,.5)',  s:'0 0 50px rgba(0,255,136,.55),0 0 100px rgba(0,255,136,.2)'},
+  sad:      {c:'#60a5fa', g:'rgba(96,165,250,.5)', s:'0 0 50px rgba(96,165,250,.55),0 0 100px rgba(96,165,250,.2)'},
+  angry:    {c:'#f43f5e', g:'rgba(244,63,94,.5)',  s:'0 0 50px rgba(244,63,94,.55),0 0 100px rgba(244,63,94,.2)'},
+  fear:     {c:'#fbbf24', g:'rgba(251,191,36,.5)', s:'0 0 50px rgba(251,191,36,.55),0 0 100px rgba(251,191,36,.2)'},
+  neutral:  {c:'#00e5ff', g:'rgba(0,229,255,.5)',  s:'0 0 50px rgba(0,229,255,.55),0 0 100px rgba(0,229,255,.2)'},
+  surprise: {c:'#c084fc', g:'rgba(192,132,252,.5)',s:'0 0 50px rgba(192,132,252,.55),0 0 100px rgba(192,132,252,.2)'},
+  disgust:  {c:'#a3e635', g:'rgba(163,230,53,.5)', s:'0 0 50px rgba(163,230,53,.55),0 0 100px rgba(163,230,53,.2)'},
+};
+function pal(e){return PALETTE[e?.toLowerCase()]||PALETTE.neutral}
+
+/* ════════════════════════════════════════
+   LANDING / BOOT LOG
+════════════════════════════════════════ */
+let bootDone   = false;
+let lastLogLen = 0;
+const terminal = document.getElementById('bootTerminal');
+
+function renderBootLine(entry){
+  const el  = document.createElement('div');
+  el.className = 'boot-line';
+  const pfx = document.createElement('span');
+  pfx.className = 'boot-prefix';
+  pfx.textContent = '[SYS]';
+  const msg = document.createElement('span');
+  const cls = entry.status === 'error' ? 'boot-msg-error'
+            : entry.status === 'ready' ? 'boot-msg-ready'
+            : 'boot-msg-ok';
+  msg.className = cls;
+  msg.textContent = entry.msg;
+  el.appendChild(pfx);
+  el.appendChild(msg);
+  terminal.appendChild(el);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+let retryCount = 0;
+
+function showLaunchButton(){
+  if(bootDone) return;
+  bootDone = true;
+
+  // Replace the "connecting…" line with a success line
+  const connectingLine = document.getElementById('connectingLine');
+  if(connectingLine) connectingLine.remove();
+  renderBootLine({msg:'Server connection established ✓', status:'ok'});
+
+  const btn = document.getElementById('launchBtn');
+  btn.style.display = 'inline-block';
+  btn.style.opacity = '0';
+  btn.style.transform = 'translateY(14px)';
+  requestAnimationFrame(()=>{
+    btn.style.transition = 'opacity .5s ease, transform .5s ease';
+    btn.style.opacity = '1';
+    btn.style.transform = 'translateY(0)';
+  });
+}
+
+async function pollBoot(){
+  try{
+    const r = await fetch(API, {cache:'no-store'});
+    const d = await r.json();
+
+    // Clear the "connecting…" placeholder on first successful fetch
+    if(retryCount === 0 || document.getElementById('connectingLine')){
+      const connectingLine = document.getElementById('connectingLine');
+      if(connectingLine) connectingLine.remove();
+    }
+
+    // ── render any new boot log lines ──
+    const log = d.boot_log || [];
+    for(let i = lastLogLen; i < log.length; i++){
+      renderBootLine(log[i]);
+    }
+    lastLogLen = log.length;  // update AFTER the loop
+
+    // ── PRIMARY trigger: recording flag set by connect_tobii() ──
+    if(d.recording === true){
+      showLaunchButton();
+      return; // stop polling
+    }
+
+    // ── SECONDARY trigger: last boot_log entry has status=ready ──
+    const lastEntry = log[log.length - 1];
+    if(lastEntry?.status === 'ready'){
+      showLaunchButton();
+      return;
+    }
+
+  }catch(e){
+    // server not up yet — update connecting message with retry count
+    retryCount++;
+    const msg = document.getElementById('connectingMsg');
+    if(msg) msg.innerHTML = `Connecting to OCULUS server… (retry ${retryCount})<span class="boot-cursor"></span>`;
+  }
+
+  // keep polling until triggered
+  setTimeout(pollBoot, BOOT_POLL);
+}
+
+// ── HARD FALLBACK: show button after 30s no matter what ──
+setTimeout(()=>{
+  if(!bootDone){
+    renderBootLine({msg:'[WARN] Timeout — forcing launch. Check server if Tobii not connected.', status:'error'});
+    showLaunchButton();
+  }
+}, 30000);
+
+function launchDashboard(){
+  document.getElementById('landing').classList.add('hide');
+  setTimeout(()=>{
+    document.getElementById('landing').style.display='none';
+    const dash = document.getElementById('dashboard');
+    dash.classList.add('show');
+    startLivePolling();
+  }, 800);
+}
+
+/* ════════════════════════════════════════
+   CHART.JS — PROB BAR
+════════════════════════════════════════ */
+const probCtx   = document.getElementById('probChart').getContext('2d');
+const probChart = new Chart(probCtx,{
+  type:'bar',
+  data:{labels:[],datasets:[{data:[],backgroundColor:[],borderWidth:0,borderRadius:5,borderSkipped:false}]},
+  options:{
+    responsive:true,
+    animation:{duration:300,easing:'easeInOutQuart'},
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        backgroundColor:'rgba(3,13,24,.96)',borderColor:'rgba(0,229,255,.3)',borderWidth:1,
+        titleFont:{family:'Share Tech Mono',size:12},bodyFont:{family:'Share Tech Mono',size:11},
+        titleColor:'#00e5ff',bodyColor:'#c8e8f8',
+        callbacks:{label:ctx=>`  ${(ctx.raw*100).toFixed(1)}%`}
+      }
+    },
+    scales:{
+      x:{grid:{color:'rgba(0,229,255,.05)',drawTicks:false},
+         ticks:{color:'#2a607f',font:{family:'Share Tech Mono',size:11},maxRotation:0,
+                callback:v=>v.toString().toUpperCase()},
+         border:{color:'rgba(0,229,255,.12)'}},
+      y:{min:0,max:1,
+         grid:{color:'rgba(0,229,255,.06)',drawTicks:false},
+         ticks:{color:'#2a607f',font:{family:'Share Tech Mono',size:10},
+                callback:v=>`${(v*100).toFixed(0)}%`},
+         border:{color:'rgba(0,229,255,.12)'}}
+    }
+  }
+});
+
+/* ════════════════════════════════════════
+   SCANPATH CANVAS
+════════════════════════════════════════ */
+const scanCanvas = document.getElementById('scanCanvas');
+const sc         = scanCanvas.getContext('2d');
+
+function drawScanpath(xs,ys){
+  const W = scanCanvas.offsetWidth||600, H=200;
+  scanCanvas.width  = W*devicePixelRatio;
+  scanCanvas.height = H*devicePixelRatio;
+  sc.scale(devicePixelRatio,devicePixelRatio);
+
+  sc.fillStyle='rgba(2,7,16,.96)';sc.fillRect(0,0,W,H);
+
+  // grid
+  sc.strokeStyle='rgba(0,229,255,.06)';sc.lineWidth=1;
+  for(let gx=0;gx<=W;gx+=W/5){sc.beginPath();sc.moveTo(gx,0);sc.lineTo(gx,H);sc.stroke()}
+  for(let gy=0;gy<=H;gy+=H/4){sc.beginPath();sc.moveTo(0,gy);sc.lineTo(W,gy);sc.stroke()}
+
+  if(!xs||xs.length<2) return;
+  const n=xs.length;
+  const px=x=>x*W, py=y=>y*H;
+
+  // glow trail
+  for(let i=1;i<n;i++){
+    const t=i/n;
+    sc.beginPath();sc.moveTo(px(xs[i-1]),py(ys[i-1]));sc.lineTo(px(xs[i]),py(ys[i]));
+    sc.strokeStyle=`rgba(0,200,255,${t*.2})`;sc.lineWidth=9;sc.lineCap='round';sc.stroke();
+  }
+  // colored path
+  for(let i=1;i<n;i++){
+    const t=i/n;
+    sc.beginPath();sc.moveTo(px(xs[i-1]),py(ys[i-1]));sc.lineTo(px(xs[i]),py(ys[i]));
+    sc.strokeStyle=`rgba(${Math.round(t*60)},${Math.round(150+t*80)},255,${.4+t*.55})`;
+    sc.lineWidth=2;sc.stroke();
+  }
+  // dots
+  for(let i=0;i<n;i++){
+    const t=i/n;
+    sc.beginPath();sc.arc(px(xs[i]),py(ys[i]),3.5,0,Math.PI*2);
+    sc.fillStyle=`rgba(0,${Math.round(140+t*115)},255,${.35+t*.55})`;sc.fill();
+  }
+  // start
+  sc.beginPath();sc.arc(px(xs[0]),py(ys[0]),9,0,Math.PI*2);
+  sc.fillStyle='rgba(0,255,136,.2)';sc.strokeStyle='#00ff88';sc.lineWidth=2;sc.fill();sc.stroke();
+  // end
+  const ex=px(xs[n-1]),ey=py(ys[n-1]),d=7;
+  sc.strokeStyle='#f43f5e';sc.lineWidth=2.5;
+  sc.beginPath();sc.moveTo(ex-d,ey-d);sc.lineTo(ex+d,ey+d);sc.stroke();
+  sc.beginPath();sc.moveTo(ex+d,ey-d);sc.lineTo(ex-d,ey+d);sc.stroke();
+}
+
+/* ════════════════════════════════════════
+   DOM HELPERS
+════════════════════════════════════════ */
+function $(id){return document.getElementById(id)}
+function set(id,v){const el=$(id);if(el)el.textContent=v}
+function html(id,v){const el=$(id);if(el)el.innerHTML=v}
+
+let lastEmotion='';
+
+function updateDashboard(d){
+  const p=pal(d.emotion);
+  const ec=p.c;
+
+  // stat bar
+  set('s-frames', d.total_frames?.toLocaleString()||'—');
+  set('s-classes',d.n_classes||'—');
+  set('s-frame',  d.frame?.toLocaleString()||'—');
+
+  // emotion card
+  const en=$('emotion-name');
+  if(d.emotion!==lastEmotion){
+    en.style.animation='none';
+    requestAnimationFrame(()=>{en.style.animation='emotionIn .25s ease'});
+    lastEmotion=d.emotion;
+  }
+  en.textContent=d.emotion?.toUpperCase()||'—';
+  en.style.color=ec;en.style.textShadow=p.s;
+  $('emotion-card').style.boxShadow=`inset 0 0 60px rgba(0,0,0,.4),0 0 40px ${p.g}`;
+  $('emotion-card').style.borderColor=ec+'44';
+  set('emo-frame',`frame #${d.frame?.toLocaleString()} · t = ${d.timestamp}s`);
+
+  const conf=d.confidence||0;
+  set('conf-pct',conf.toFixed(1)+'%');
+  $('conf-pct').style.color=ec;
+  $('conf-fill').style.width=conf+'%';
+  $('conf-fill').style.background=`linear-gradient(90deg,${ec}88,${ec})`;
+  $('conf-fill').style.boxShadow=`0 0 16px ${p.g}`;
+
+  // metrics
+  set('m-x',    d.avg_x??'—');
+  set('m-y',    d.avg_y??'—');
+  set('m-pupil',d.avg_pupil??'—');
+  set('m-sacc', d.saccade_speed??'—');
+
+  // gt
+  set('gt-label',d.true_label?.toUpperCase()||'LIVE');
+  set('stim-id', d.stimulus||'—');
+
+  // feature table
+  if(d.avg_x!==undefined){
+    const rows=[
+      {n:'Avg X',      v:d.avg_x,         u:'norm'},
+      {n:'Avg Y',      v:d.avg_y,         u:'norm'},
+      {n:'Std X',      v:d.std_x,         u:''},
+      {n:'Std Y',      v:d.std_y,         u:''},
+      {n:'Pupil Ø',    v:d.avg_pupil,     u:'mm'},
+      {n:'Saccade Spd',v:d.saccade_speed, u:'u/s'},
+    ];
+    const mx=Math.max(...rows.map(r=>Math.abs(r.v||0)))||1;
+    html('feat-tbody',rows.map(r=>{
+      const pct=Math.min(Math.abs(r.v)/mx*100,100).toFixed(0);
+      return `<tr>
+        <td class="td-name">${r.n}</td>
+        <td class="td-val">${(+r.v).toFixed(5)}</td>
+        <td class="td-unit">${r.u}</td>
+        <td class="td-bar"><div class="mini-bar"><div class="mini-fill" style="width:${pct}%"></div></div></td>
+      </tr>`;
+    }).join(''));
+  }
+
+  // prob chart
+  if(d.probs&&d.classes){
+    const labels=d.classes;
+    const vals=labels.map(c=>d.probs[c]||0);
+    const bgs=labels.map(c=>{
+      const cp=pal(c);
+      return c.toLowerCase()===d.emotion?.toLowerCase()?cp.c+'cc':cp.c+'2e';
+    });
+    probChart.data.labels=labels.map(l=>l.toUpperCase());
+    probChart.data.datasets[0].data=vals;
+    probChart.data.datasets[0].backgroundColor=bgs;
+    probChart.update('active');
+    set('prob-ts',`t = ${d.timestamp}s`);
+  }
+
+  // scanpath
+  if(d.scanpath_x?.length) drawScanpath(d.scanpath_x,d.scanpath_y);
+
+  // heatmap
+  if(d.heatmap_b64) $('heatmap-img').src='data:image/jpeg;base64,'+d.heatmap_b64;
+
+  // session info
+  set('sess-start', d.session_start ? new Date(d.session_start).toLocaleTimeString() : '—');
+  set('sess-entries', (window._reportEntries||0).toString());
+}
+
+/* ════════════════════════════════════════
+   STOP RECORDING
+════════════════════════════════════════ */
+let isStopped = false;
+window._reportEntries = 0;
+
+async function stopRecording(){
+  if(isStopped) return;
+  isStopped=true;
+
+  // disable both stop buttons
+  [$('stopBtn'),$('stopBtn2')].forEach(b=>{if(b){b.disabled=true;b.textContent='⬛ Stopped'}});
+
+  // Update live badge
+  const lb=$('liveStatus');
+  if(lb){lb.style.color='#f43f5e';lb.innerHTML='<div class="live-dot" style="background:#f43f5e;box-shadow:0 0 10px #f43f5e"></div>STOPPED'}
+
+  try{
+    const r = await fetch('http://localhost:5050/api/stop',{method:'POST'});
+    const d = await r.json();
+    window._reportEntries = d.entries||0;
+    set('sess-entries', window._reportEntries.toString());
+    set('sess-status','Stopped');
+    set('sess-end', new Date().toLocaleTimeString());
+    $('sess-end').style.color='var(--red)';
+  }catch(e){}
+
+  // Enable download buttons
+  ['csvBtn','jsonBtn'].forEach(id=>{
+    const el=$(id);
+    if(el) el.classList.remove('btn-disabled');
+  });
+}
+
+/* ════════════════════════════════════════
+   LIVE POLLING LOOP
+════════════════════════════════════════ */
+async function pollLive(){
+  if(isStopped) return;
+  try{
+    const r=await fetch(API,{cache:'no-store'});
+    const d=await r.json();
+    updateDashboard(d);
+  }catch(e){}
+  setTimeout(pollLive, LIVE_POLL);
+}
+
+function startLivePolling(){
+  pollLive();
+}
+
+/* ════════════════════════════════════════
+   ADD EMOTION FLASH ANIMATION
+════════════════════════════════════════ */
+const style = document.createElement('style');
+style.textContent=`
+@keyframes emotionIn{
+  0%{opacity:0;transform:scaleY(.75) skewX(-5deg)}
+  100%{opacity:1;transform:scaleY(1) skewX(0)}
+}`;
+document.head.appendChild(style);
+
+/* ════════════════════════════════════════
+   START BOOT POLLING
+════════════════════════════════════════ */
+pollBoot();
+</script>
+</body>
+</html>
