@@ -101,7 +101,7 @@ The raw eye-tracking data was preprocessed using the following steps:
 ## 🎥 Demo
 
 <p align="center">
-  <video src="Demo/Screen Recording 2026-03-13 121309.mp4" width="600" controls></video>
+  <video src="Demo/recording.mp4" width="600" controls></video>
 </p>
 
 ---
