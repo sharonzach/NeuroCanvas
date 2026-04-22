@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NeuroGaze · Emotion Fusion Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #04050a;
+    --panel: #0b0d15;
+    --panel2: #0f1120;
+    --border: rgba(120,130,200,0.13);
+    --glow-eeg: #7cffd4;
+    --glow-eye: #ff7eb3;
+    --glow-fuse: #ffe066;
+    --text: #d0d6f5;
+    --muted: #5a607a;
+    --sad:     #5b8af5;
+    --anger:   #ff4f4f;
+    --fear:    #b46fff;
+    --disgust: #50c98a;
+    --happy:   #ffcc33;
+    --neutral: #8899aa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid bg */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(100,120,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(100,120,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .everything { position: relative; z-index: 1; }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 36px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(11,13,21,0.96);
+    position: sticky; top: 0; z-index: 100;
+    backdrop-filter: blur(8px);
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.3rem;
+    letter-spacing: -0.5px;
+  }
+  .logo span.eeg { color: var(--glow-eeg); }
+  .logo span.sep { color: var(--muted); margin: 0 4px; }
+  .logo span.eye { color: var(--glow-eye); }
+
+  .status-bar {
+    display: flex; align-items: center; gap: 20px;
+    font-size: 0.65rem; letter-spacing: 1px; color: var(--muted);
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--glow-eeg);
+    box-shadow: 0 0 8px var(--glow-eeg);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:0.5; transform:scale(0.7); } }
+
+  .frame-counter { color: var(--glow-fuse); font-size: 0.6rem; }
+
+  /* Upload area */
+  .upload-area {
+    margin: 24px 36px 0;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 14px 20px;
+    display: flex; align-items: center; gap: 16px;
+    background: var(--panel);
+    font-size: 0.65rem; color: var(--muted);
+  }
+  .upload-area input[type=file] { display: none; }
+  .upload-btn {
+    background: transparent;
+    border: 1px solid var(--glow-eeg);
+    color: var(--glow-eeg);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: background 0.2s;
+  }
+  .upload-btn:hover { background: rgba(124,255,212,0.08); }
+  .upload-status { color: var(--glow-fuse); }
+
+  /* Main grid */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 20px;
+    padding: 24px 36px;
+  }
+
+  /* Panel base */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .panel::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    border-radius: 12px 12px 0 0;
+  }
+  .eeg-panel::before  { background: linear-gradient(90deg, var(--glow-eeg), transparent); }
+  .eye-panel::before  { background: linear-gradient(90deg, var(--glow-eye), transparent); }
+  .fuse-panel::before { background: linear-gradient(90deg, var(--glow-fuse), transparent); box-shadow: 0 0 20px var(--glow-fuse); }
+
+  .panel-label {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .eeg-panel .panel-label  { color: var(--glow-eeg); }
+  .eye-panel .panel-label  { color: var(--glow-eye); }
+  .fuse-panel .panel-label { color: var(--glow-fuse); }
+
+  .panel-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.1rem;
+    margin-bottom: 20px;
+  }
+
+  /* Emotion display */
+  .emotion-main {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .emotion-orb {
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem;
+    flex-shrink: 0;
+    position: relative;
+    transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .emotion-orb::after {
+    content: '';
+    position: absolute; inset: -6px;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    opacity: 0.3;
+    animation: spin 4s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .emotion-orb.fuse {
+    width: 120px; height: 120px;
+    font-size: 2.8rem;
+  }
+
+  .emotion-info { flex: 1; }
+  .emotion-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.8rem;
+    line-height: 1;
+    margin-bottom: 6px;
+    transition: color 0.4s;
+  }
+  .emotion-name.fuse { font-size: 2.4rem; }
+  .confidence-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .conf-label { font-size: 0.55rem; letter-spacing: 1px; color: var(--muted); }
+  .conf-bar-wrap { flex: 1; height: 4px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+  .conf-bar { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+  .conf-pct { font-size: 0.6rem; color: var(--muted); }
+
+  /* Emotion emotion bars */
+  .emotion-bars { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+  .emo-row { display: flex; align-items: center; gap: 8px; }
+  .emo-name { font-size: 0.55rem; letter-spacing: 1px; color: var(--muted); width: 52px; text-align: right; }
+  .emo-bar-wrap { flex: 1; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; }
+  .emo-bar { height: 100%; border-radius: 3px; transition: width 0.5s ease; min-width: 2px; }
+  .emo-val { font-size: 0.55rem; color: var(--muted); width: 30px; }
+
+  /* EEG waveform canvas */
+  .wave-wrap { margin-top: 14px; position: relative; }
+  .wave-label { font-size: 0.5rem; letter-spacing: 1px; color: var(--muted); margin-bottom: 4px; }
+  canvas.wave {
+    width: 100%; height: 50px;
+    display: block;
+    border-radius: 6px;
+    background: rgba(124,255,212,0.03);
+  }
+
+  /* Eye gaze canvas */
+  .gaze-wrap { margin-top: 14px; }
+  canvas.gaze {
+    width: 100%; height: 100px;
+    display: block;
+    border-radius: 6px;
+    background: rgba(255,126,179,0.03);
+    border: 1px solid rgba(255,126,179,0.1);
+  }
+
+  /* Data table mini */
+  .data-stream {
+    margin-top: 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: 0.5rem;
+  }
+  .ds-header, .ds-row {
+    display: grid;
+    grid-template-columns: 60px repeat(4, 1fr);
+    gap: 0;
+  }
+  .ds-header { background: rgba(255,255,255,0.04); }
+  .ds-header span, .ds-row span {
+    padding: 4px 8px;
+    border-right: 1px solid var(--border);
+    color: var(--muted);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .ds-row { border-top: 1px solid var(--border); }
+  .ds-row span:first-child { color: var(--glow-fuse); }
+  .ds-row.new-row { animation: rowflash 0.5s ease; }
+  @keyframes rowflash { from { background: rgba(255,224,102,0.08); } to { background: transparent; } }
+
+  /* Fusion panel full width */
+  .fuse-panel {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 32px;
+    align-items: start;
+    background: var(--panel2);
+    border-color: rgba(255,224,102,0.2);
+  }
+
+  .fuse-center { text-align: center; }
+  .fuse-divider {
+    width: 1px;
+    background: var(--border);
+    align-self: stretch;
+  }
+
+  /* Emotion history timeline */
+  .timeline-wrap { display: flex; flex-direction: column; gap: 4px; }
+  .timeline-label { font-size: 0.5rem; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; }
+  .timeline-items { display: flex; flex-direction: column; gap: 4px; }
+  .tl-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.55rem;
+    opacity: 0.6;
+    transition: opacity 0.3s;
+  }
+  .tl-item:first-child { opacity: 1; }
+  .tl-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .tl-time { color: var(--muted); width: 36px; }
+  .tl-emo { font-family: 'Syne', sans-serif; font-weight: 700; }
+
+  /* Stats right panel */
+  .stats-grid { display: flex; flex-direction: column; gap: 12px; }
+  .stat-item { }
+  .stat-label { font-size: 0.5rem; letter-spacing: 1px; color: var(--muted); margin-bottom: 2px; }
+  .stat-val { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.1rem; }
+
+  /* Colors per emotion */
+  .c-sad     { color: var(--sad);     }
+  .c-anger   { color: var(--anger);   }
+  .c-fear    { color: var(--fear);    }
+  .c-disgust { color: var(--disgust); }
+  .c-happy   { color: var(--happy);   }
+  .c-neutral { color: var(--neutral); }
+
+  .bg-sad     { background: var(--sad);     }
+  .bg-anger   { background: var(--anger);   }
+  .bg-fear    { background: var(--fear);    }
+  .bg-disgust { background: var(--disgust); }
+  .bg-happy   { background: var(--happy);   }
+  .bg-neutral { background: var(--neutral); }
+
+  .shadow-sad     { box-shadow: 0 0 30px rgba(91,138,245,0.5); }
+  .shadow-anger   { box-shadow: 0 0 30px rgba(255,79,79,0.5); }
+  .shadow-fear    { box-shadow: 0 0 30px rgba(180,111,255,0.5); }
+  .shadow-disgust { box-shadow: 0 0 30px rgba(80,201,138,0.5); }
+  .shadow-happy   { box-shadow: 0 0 30px rgba(255,204,51,0.5); }
+  .shadow-neutral { box-shadow: 0 0 30px rgba(136,153,170,0.3); }
+
+  .ctrl-bar {
+    display: flex; gap: 10px; align-items: center;
+    margin: 0 36px 24px;
+    flex-wrap: wrap;
+  }
+  .ctrl-btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 1px;
+    padding: 7px 16px;
+    border-radius: 5px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .ctrl-btn.play  { border-color: var(--glow-eeg); color: var(--glow-eeg); background: transparent; }
+  .ctrl-btn.play:hover  { background: rgba(124,255,212,0.1); }
+  .ctrl-btn.stop  { border-color: var(--anger); color: var(--anger); background: transparent; }
+  .ctrl-btn.stop:hover  { background: rgba(255,79,79,0.1); }
+  .speed-label { font-size: 0.55rem; color: var(--muted); }
+  .speed-select {
+    background: var(--panel); border: 1px solid var(--border);
+    color: var(--text); font-family: 'Space Mono', monospace;
+    font-size: 0.6rem; padding: 6px 10px; border-radius: 4px; cursor: pointer;
+  }
+  .row-idx { font-size: 0.6rem; color: var(--muted); margin-left: auto; }
+
+  /* Agreement badge */
+  .agree-badge {
+    display: inline-block;
+    font-size: 0.55rem; letter-spacing: 1.5px;
+    padding: 3px 10px; border-radius: 20px;
+    margin-top: 8px;
+  }
+  .agree-yes { background: rgba(80,201,138,0.15); color: var(--disgust); border: 1px solid rgba(80,201,138,0.3); }
+  .agree-no  { background: rgba(255,79,79,0.1);  color: var(--anger);   border: 1px solid rgba(255,79,79,0.3); }
+</style>
+</head>
+<body>
+<div class="everything">
+
+<header>
+  <div class="logo">
+    Neuro<span class="eeg">EEG</span><span class="sep">×</span><span class="eye">GAZE</span> · FUSION
+  </div>
+  <div class="status-bar">
+    <div class="dot"></div>
+    <span>LIVE STREAM</span>
+    <span class="frame-counter" id="frameCounter">FRAME 0000</span>
+    <span id="tsDisplay">T+00.0s</span>
+  </div>
+</header>
+
+<!-- Upload -->
+<div class="upload-area">
+  <label class="upload-btn" for="csvFile">LOAD CSV</label>
+  <input type="file" id="csvFile" accept=".csv">
+  <span class="upload-status" id="uploadStatus">Using built-in synthetic dataset · 24 samples</span>
+</div>
+
+<!-- Controls -->
+<div class="ctrl-bar" style="margin-top:16px;">
+  <button class="ctrl-btn play" id="btnPlay">▶ START STREAM</button>
+  <button class="ctrl-btn stop" id="btnStop">■ STOP</button>
+  <span class="speed-label">INTERVAL</span>
+  <select class="speed-select" id="speedSel">
+    <option value="400">FAST · 400ms</option>
+    <option value="800" selected>NORMAL · 800ms</option>
+    <option value="1600">SLOW · 1.6s</option>
+  </select>
+  <span class="row-idx" id="rowIdx">— / —</span>
+</div>
+
+<!-- Main panels -->
+<div class="main-grid">
+
+  <!-- EEG Panel -->
+  <div class="panel eeg-panel" id="eegPanel">
+    <div class="panel-label">Channel 01 · EEG · 3-CLASS ZONE</div>
+    <div class="panel-title">Valence–Arousal Zone</div>
+    <div class="emotion-main">
+      <div class="emotion-orb" id="eegOrb">🧠</div>
+      <div class="emotion-info">
+        <div class="emotion-name" id="eegEmoName">—</div>
+        <div class="confidence-row">
+          <span class="conf-label">CONF</span>
+          <div class="conf-bar-wrap"><div class="conf-bar" id="eegConfBar" style="width:0%"></div></div>
+          <span class="conf-pct" id="eegConfPct">0%</span>
+        </div>
+        <div style="font-size:0.5rem;color:var(--muted);margin-top:4px;">
+          δ <span id="eegDelta">—</span> &nbsp;θ <span id="eegTheta">—</span> &nbsp;α <span id="eegAlpha">—</span> &nbsp;β <span id="eegBeta">—</span>
+        </div>
+      </div>
+    </div>
+    <div class="emotion-bars" id="eegBars"></div>
+    <div class="wave-wrap">
+      <div class="wave-label">EEG BAND POWER STREAM</div>
+      <canvas class="wave" id="eegWave" height="50"></canvas>
+    </div>
+  </div>
+
+  <!-- Eye Gaze Panel -->
+  <div class="panel eye-panel" id="eyePanel">
+    <div class="panel-label">Channel 02 · Eye Gaze</div>
+    <div class="panel-title">Gaze Emotion</div>
+    <div class="emotion-main">
+      <div class="emotion-orb" id="eyeOrb">👁</div>
+      <div class="emotion-info">
+        <div class="emotion-name" id="eyeEmoName">—</div>
+        <div class="confidence-row">
+          <span class="conf-label">CONF</span>
+          <div class="conf-bar-wrap"><div class="conf-bar" id="eyeConfBar" style="width:0%"></div></div>
+          <span class="conf-pct" id="eyeConfPct">0%</span>
+        </div>
+        <div style="font-size:0.5rem;color:var(--muted);margin-top:4px;">
+          pupil <span id="eyePupil">—</span> &nbsp;sacc <span id="eyeSacc">—</span> &nbsp;x̄ <span id="eyeX">—</span> &nbsp;ȳ <span id="eyeY">—</span>
+        </div>
+      </div>
+    </div>
+    <div class="emotion-bars" id="eyeBars"></div>
+    <div class="gaze-wrap">
+      <canvas class="gaze" id="gazeCanvas" height="100"></canvas>
+    </div>
+  </div>
+
+  <!-- Fusion Panel -->
+  <div class="panel fuse-panel" id="fusePanel">
+
+    <!-- Timeline left -->
+    <div class="timeline-wrap">
+      <div class="timeline-label">History</div>
+      <div class="timeline-items" id="timeline"></div>
+    </div>
+
+    <div class="fuse-divider"></div>
+
+    <!-- Center fused emotion -->
+    <div class="fuse-center">
+      <div class="panel-label" style="margin-bottom:8px;">FUSION OUTPUT</div>
+      <div style="display:flex;justify-content:center;margin-bottom:12px;">
+        <div class="emotion-orb fuse" id="fuseOrb">⚡</div>
+      </div>
+      <div class="emotion-name fuse" id="fuseEmoName" style="margin-bottom:6px;">AWAITING DATA</div>
+      <div class="confidence-row" style="justify-content:center;gap:10px;">
+        <div class="conf-bar-wrap" style="width:140px;"><div class="conf-bar" id="fuseConfBar" style="width:0%"></div></div>
+        <span class="conf-pct" id="fuseConfPct">0%</span>
+      </div>
+      <div id="agreeBadge"></div>
+      <div class="emotion-bars" id="fuseBars" style="margin-top:10px;min-width:220px;"></div>
+      <div style="margin-top:10px;font-size:0.48rem;color:var(--muted);letter-spacing:1px;">
+        PRIOR(EEG) × LIKELIHOOD(GAZE) → POSTERIOR
+      </div>
+    </div>
+
+    <div class="fuse-divider"></div>
+
+    <!-- Stats right -->
+    <div class="stats-grid">
+      <div class="stat-item">
+        <div class="stat-label">FRAME</div>
+        <div class="stat-val" id="statFrame" style="color:var(--glow-fuse)">0000</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">EEG AGREEMENT</div>
+        <div class="stat-val" id="statAgree" style="color:var(--disgust)">—</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">BAND POWER</div>
+        <div class="stat-val" id="statBand" style="font-size:0.85rem;">—</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">PUPIL Ø</div>
+        <div class="stat-val" id="statPupil" style="font-size:0.9rem;">—</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">SACCADE SPD</div>
+        <div class="stat-val" id="statSacc" style="font-size:0.9rem;">—</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Data stream table -->
+<div style="padding:0 36px 36px;">
+  <div style="font-size:0.55rem;letter-spacing:1.5px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;">Live Data Stream</div>
+  <div class="data-stream">
+    <div class="ds-header">
+      <span>FRAME</span>
+      <span>EEG ZONE</span>
+      <span>EYE EMO</span>
+      <span>FUSED</span>
+      <span>AGREE</span>
+    </div>
+    <div id="dataRows"></div>
+  </div>
+</div>
+
+</div><!-- .everything -->
+
+<script>
+// ── EEG has 3 classes (valence-arousal zones), Eye Gaze has 5 emotion classes ──
+//
+// EEG label mapping (from original data):
+//   Class 0 → NEG-LOW  : negative valence, low arousal  → covers: sad
+//   Class 1 → NEG-HIGH : negative valence, high arousal → covers: fear, anger
+//   Class 2 → MIXED    : mixed/approach valence         → covers: disgust, happy
+//
+// Eye Gaze has full 5-emotion labels: sad, anger, fear, disgust, happy
+//
+// Fusion logic:
+//   1. EEG predicts a valence-arousal ZONE (not a specific emotion)
+//   2. Eye gaze predicts a specific fine-grained emotion
+//   3. We check if gaze emotion is COMPATIBLE with EEG zone
+//      - Compatible  → high-confidence fused = gaze emotion (EEG confirms zone)
+//      - Incompatible → divergence flag, fused = gaze emotion but lower conf
+//      - EEG zone is shown as label e.g. "NEG-LOW" not a fake fine emotion
+// ──────────────────────────────────────────────────────────────────────────────
+
+// EEG 3-class zone metadata
+const EEG_ZONE_META = {
+  'NEG-LOW':  { label:'NEG-LOW',  desc:'Negative · Low Arousal',  emoji:'🌑', color:'var(--sad)',     compatibles:['sad']                  },
+  'NEG-HIGH': { label:'NEG-HIGH', desc:'Negative · High Arousal', emoji:'⚡', color:'var(--fear)',    compatibles:['fear','anger']          },
+  'MIXED':    { label:'MIXED',    desc:'Mixed / Approach',        emoji:'🌀', color:'var(--disgust)', compatibles:['disgust','happy','anger']},
+};
+const EEG_ZONE_KEYS = ['NEG-LOW','NEG-HIGH','MIXED'];
+
+// Eye gaze 5-emotion metadata
+const EMOTION_META = {
+  sad:     { emoji:'😢', color:'var(--sad)'     },
+  anger:   { emoji:'😠', color:'var(--anger)'   },
+  fear:    { emoji:'😨', color:'var(--fear)'    },
+  disgust: { emoji:'🤢', color:'var(--disgust)' },
+  happy:   { emoji:'😄', color:'var(--happy)'   },
+  neutral: { emoji:'😐', color:'var(--neutral)' },
+};
+const EMO_KEYS = ['sad','anger','fear','disgust','happy'];
+
+// Synthetic dataset:
+//   eeg_zone   = EEG 3-class prediction (NEG-LOW / NEG-HIGH / MIXED)
+//   eeg_label  = numeric class from original data (0/1/2)
+//   eye_emotion= Eye gaze 5-class fine-grained emotion
+//   compatible = whether gaze emotion falls inside EEG zone
+//   (fused is always computed live from zone + gaze compatibility)
+const BUILT_IN_DATA = [
+  // Class 0 (NEG-LOW: sad) rows — high delta, low beta
+  {timestamp:0,  eeg_label:0, eeg_zone:'NEG-LOW',  eye_emotion:'sad',    eegConf:88, eyeConf:82, delta:0.978, theta:0.019, alpha:0.0005, beta:0.0004, pupil:3.25, sacc:2.78, x:0.454, y:0.261, band:3.316},
+  {timestamp:1,  eeg_label:0, eeg_zone:'NEG-LOW',  eye_emotion:'sad',    eegConf:85, eyeConf:79, delta:0.982, theta:0.015, alpha:0.0006, beta:0.0004, pupil:3.10, sacc:3.51, x:0.370, y:0.267, band:3.243},
+  // Class 0 with gaze divergence (gaze sees anger but EEG says neg-low → mismatch)
+  {timestamp:2,  eeg_label:0, eeg_zone:'NEG-LOW',  eye_emotion:'anger',  eegConf:83, eyeConf:74, delta:0.960, theta:0.020, alpha:0.0010, beta:0.0005, pupil:3.35, sacc:2.90, x:0.420, y:0.310, band:3.100},
+  // Class 1 (NEG-HIGH: fear/anger) rows — moderate delta, higher beta
+  {timestamp:3,  eeg_label:1, eeg_zone:'NEG-HIGH', eye_emotion:'fear',   eegConf:79, eyeConf:74, delta:0.933, theta:0.037, alpha:0.0092, beta:0.0124, pupil:3.72, sacc:3.40, x:0.610, y:0.269, band:1.689},
+  {timestamp:4,  eeg_label:1, eeg_zone:'NEG-HIGH', eye_emotion:'fear',   eegConf:72, eyeConf:71, delta:0.933, theta:0.037, alpha:0.0092, beta:0.0124, pupil:3.07, sacc:5.74, x:0.388, y:0.334, band:1.048},
+  {timestamp:5,  eeg_label:1, eeg_zone:'NEG-HIGH', eye_emotion:'anger',  eegConf:89, eyeConf:85, delta:0.982, theta:0.015, alpha:0.0014, beta:0.0007, pupil:3.65, sacc:3.51, x:0.343, y:0.251, band:3.243},
+  {timestamp:6,  eeg_label:1, eeg_zone:'NEG-HIGH', eye_emotion:'fear',   eegConf:78, eyeConf:89, delta:0.978, theta:0.019, alpha:0.0005, beta:0.0004, pupil:3.66, sacc:6.70, x:0.703, y:0.331, band:3.316},
+  // Class 1 with gaze divergence (gaze sees sad but EEG says neg-high → mismatch)
+  {timestamp:7,  eeg_label:1, eeg_zone:'NEG-HIGH', eye_emotion:'sad',    eegConf:76, eyeConf:68, delta:0.959, theta:0.018, alpha:0.0157, beta:0.0087, pupil:3.14, sacc:2.85, x:0.341, y:0.414, band:2.216},
+  // Class 2 (MIXED: disgust/happy/anger) rows — lower delta, higher alpha/beta
+  {timestamp:8,  eeg_label:2, eeg_zone:'MIXED',    eye_emotion:'disgust',eegConf:83, eyeConf:77, delta:0.909, theta:0.076, alpha:0.0082, beta:0.0133, pupil:3.46, sacc:1.97, x:0.563, y:0.115, band:1.623},
+  {timestamp:9,  eeg_label:2, eeg_zone:'MIXED',    eye_emotion:'happy',  eegConf:86, eyeConf:80, delta:0.885, theta:0.089, alpha:0.0143, beta:0.0158, pupil:3.14, sacc:3.15, x:0.469, y:0.254, band:1.592},
+  {timestamp:10, eeg_label:2, eeg_zone:'MIXED',    eye_emotion:'happy',  eegConf:84, eyeConf:82, delta:0.693, theta:0.127, alpha:0.1155, beta:0.0558, pupil:2.96, sacc:6.54, x:0.265, y:0.443, band:1.653},
+  {timestamp:11, eeg_label:2, eeg_zone:'MIXED',    eye_emotion:'disgust',eegConf:81, eyeConf:76, delta:0.362, theta:0.135, alpha:0.1943, beta:0.2609, pupil:4.01, sacc:4.02, x:0.477, y:0.429, band:1.477},
+  {timestamp:12, eeg_label:2, eeg_zone:'MIXED',    eye_emotion:'anger',  eegConf:88, eyeConf:81, delta:0.335, theta:0.185, alpha:0.1725, beta:0.1187, pupil:3.23, sacc:3.72, x:0.497, y:0.284, band:1.048},
+  // Class 2 with gaze divergence (gaze sees fear but EEG zone is MIXED → mismatch)
+  {timestamp:13, eeg_label:2, eeg_zone:'MIXED',    eye_emotion:'fear',   eegConf:80, eyeConf:75, delta:0.850, theta:0.080, alpha:0.0100, beta:0.0150, pupil:3.50, sacc:2.10, x:0.600, y:0.200, band:1.700},
+  // More class 0
+  {timestamp:14, eeg_label:0, eeg_zone:'NEG-LOW',  eye_emotion:'sad',    eegConf:82, eyeConf:78, delta:0.980, theta:0.018, alpha:0.0006, beta:0.0005, pupil:4.03, sacc:3.92, x:0.580, y:0.393, band:3.200},
+  // More class 1
+  {timestamp:15, eeg_label:1, eeg_zone:'NEG-HIGH', eye_emotion:'fear',   eegConf:74, eyeConf:70, delta:0.693, theta:0.127, alpha:0.1155, beta:0.0558, pupil:3.14, sacc:4.51, x:0.481, y:0.272, band:1.653},
+  {timestamp:16, eeg_label:1, eeg_zone:'NEG-HIGH', eye_emotion:'anger',  eegConf:92, eyeConf:86, delta:0.990, theta:0.012, alpha:0.0013, beta:0.0007, pupil:3.70, sacc:3.60, x:0.310, y:0.220, band:3.300},
+  // More class 2
+  {timestamp:17, eeg_label:2, eeg_zone:'MIXED',    eye_emotion:'happy',  eegConf:85, eyeConf:81, delta:0.710, theta:0.120, alpha:0.1000, beta:0.0600, pupil:2.90, sacc:4.20, x:0.510, y:0.480, band:1.500},
+  {timestamp:18, eeg_label:2, eeg_zone:'MIXED',    eye_emotion:'disgust',eegConf:80, eyeConf:75, delta:0.850, theta:0.080, alpha:0.0100, beta:0.0150, pupil:3.50, sacc:2.10, x:0.600, y:0.200, band:1.700},
+  {timestamp:19, eeg_label:2, eeg_zone:'MIXED',    eye_emotion:'happy',  eegConf:87, eyeConf:84, delta:0.959, theta:0.018, alpha:0.0157, beta:0.0087, pupil:3.81, sacc:2.85, x:0.341, y:0.414, band:2.216},
+  // Cross-modal divergence examples
+  {timestamp:20, eeg_label:1, eeg_zone:'NEG-HIGH', eye_emotion:'disgust',eegConf:77, eyeConf:72, delta:0.920, theta:0.040, alpha:0.0100, beta:0.0130, pupil:3.75, sacc:5.50, x:0.650, y:0.350, band:1.700},
+  {timestamp:21, eeg_label:0, eeg_zone:'NEG-LOW',  eye_emotion:'fear',   eegConf:80, eyeConf:73, delta:0.975, theta:0.021, alpha:0.0008, beta:0.0005, pupil:3.40, sacc:4.80, x:0.480, y:0.290, band:3.050},
+  {timestamp:22, eeg_label:2, eeg_zone:'MIXED',    eye_emotion:'happy',  eegConf:88, eyeConf:85, delta:0.660, theta:0.140, alpha:0.1200, beta:0.0650, pupil:2.80, sacc:5.00, x:0.400, y:0.500, band:1.600},
+  {timestamp:23, eeg_label:1, eeg_zone:'NEG-HIGH', eye_emotion:'fear',   eegConf:75, eyeConf:69, delta:0.940, theta:0.035, alpha:0.0088, beta:0.0118, pupil:3.68, sacc:5.90, x:0.620, y:0.300, band:1.750},
+];
+
+// ── CSV Parser ─────────────────────────────────────────────────────────────────
+// Accepts new format (eeg_zone + eye_emotion) or old format (auto-mapped)
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const vals = line.split(',');
+    const obj = {};
+    headers.forEach((h,i) => { obj[h] = vals[i]?.trim(); });
+    if (!obj.eeg_zone && obj.eeg_emotion) {
+      const emo = (obj.eeg_emotion||'').toLowerCase();
+      if (emo==='sad') obj.eeg_zone='NEG-LOW';
+      else if (emo==='fear'||emo==='anger') obj.eeg_zone='NEG-HIGH';
+      else obj.eeg_zone='MIXED';
+    }
+    if (!obj.eye_emotion && obj.emotion) obj.eye_emotion = obj.emotion;
+    return obj;
+  }).filter(r => r.eeg_zone || r.eye_emotion);
+}
+
+// ── State ───────────────────────────────────────────────────────────────────────
+let data = BUILT_IN_DATA;
+let idx = 0;
+let timer = null;
+let frame = 0;
+let startTime = null;
+let eegHistory = new Array(80).fill(0);
+let gazePoints = [];
+let history = [];
+
+// ── Canvas refs ─────────────────────────────────────────────────────────────────
+const eegWave = document.getElementById('eegWave');
+const eegCtx  = eegWave.getContext('2d');
+const gazeC   = document.getElementById('gazeCanvas');
+const gazeCtx = gazeC.getContext('2d');
+
+function resizeCanvases() {
+  eegWave.width  = eegWave.offsetWidth  * devicePixelRatio;
+  eegWave.height = eegWave.offsetHeight * devicePixelRatio;
+  eegCtx.scale(devicePixelRatio, devicePixelRatio);
+  gazeC.width  = gazeC.offsetWidth  * devicePixelRatio;
+  gazeC.height = gazeC.offsetHeight * devicePixelRatio;
+  gazeCtx.scale(devicePixelRatio, devicePixelRatio);
+}
+window.addEventListener('load', resizeCanvases);
+
+// ── Draw EEG waveform ───────────────────────────────────────────────────────────
+function drawEEG(color) {
+  const w = eegWave.offsetWidth, h = eegWave.offsetHeight;
+  eegCtx.clearRect(0,0,w,h);
+  const pts = eegHistory;
+  const step = w / (pts.length - 1);
+  const mid  = h * 0.5;
+  const amp  = h * 0.38;
+  eegCtx.beginPath();
+  pts.forEach((v,i) => {
+    const x = i * step;
+    const y = mid - v * amp;
+    i === 0 ? eegCtx.moveTo(x,y) : eegCtx.lineTo(x,y);
+  });
+  eegCtx.strokeStyle = color;
+  eegCtx.lineWidth = 1.5;
+  eegCtx.shadowColor = color;
+  eegCtx.shadowBlur = 6;
+  eegCtx.stroke();
+  eegCtx.shadowBlur = 0;
+}
+
+// ── Draw gaze scatter ───────────────────────────────────────────────────────────
+function drawGaze(color) {
+  const w = gazeC.offsetWidth, h = gazeC.offsetHeight;
+  gazeCtx.clearRect(0,0,w,h);
+  // crosshair
+  gazeCtx.strokeStyle = 'rgba(255,126,179,0.12)';
+  gazeCtx.lineWidth = 1;
+  gazeCtx.beginPath(); gazeCtx.moveTo(w/2,0); gazeCtx.lineTo(w/2,h); gazeCtx.stroke();
+  gazeCtx.beginPath(); gazeCtx.moveTo(0,h/2); gazeCtx.lineTo(w,h/2); gazeCtx.stroke();
+
+  gazePoints.forEach((p,i) => {
+    const alpha = (i+1)/gazePoints.length;
+    gazeCtx.beginPath();
+    gazeCtx.arc(p.x*w, p.y*h, 4, 0, Math.PI*2);
+    gazeCtx.fillStyle = color.replace(')',`,${alpha*0.5})`).replace('var(','rgba(');
+    gazeCtx.fill();
+    if (i === gazePoints.length-1) {
+      gazeCtx.beginPath();
+      gazeCtx.arc(p.x*w, p.y*h, 8, 0, Math.PI*2);
+      gazeCtx.strokeStyle = color;
+      gazeCtx.lineWidth = 2;
+      gazeCtx.shadowColor = color;
+      gazeCtx.shadowBlur = 10;
+      gazeCtx.stroke();
+      gazeCtx.shadowBlur = 0;
+    }
+  });
+
+  // crosshair label
+  gazeCtx.fillStyle = 'rgba(255,126,179,0.25)';
+  gazeCtx.font = `${9}px Space Mono, monospace`;
+  gazeCtx.fillText('SCREEN', 4, 10);
+}
+
+// ── EEG Zone bars (3-class) ───────────────────────────────────────────────────
+const ZONE_CLS_MAP = { 'NEG-LOW':'sad', 'NEG-HIGH':'fear', 'MIXED':'disgust' };
+function makeEegZoneBars(containerId, activeZone) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  EEG_ZONE_KEYS.forEach(z => {
+    const isActive = z === activeZone;
+    const val = isActive ? (68 + Math.random()*22) : (Math.random()*28);
+    const cls = ZONE_CLS_MAP[z];
+    const div = document.createElement('div');
+    div.className = 'emo-row';
+    div.innerHTML = `
+      <span class="emo-name" style="width:62px;font-size:0.48rem;">${z}</span>
+      <div class="emo-bar-wrap"><div class="emo-bar bg-${cls}" style="width:${val}%"></div></div>
+      <span class="emo-val">${val.toFixed(0)}%</span>
+    `;
+    el.appendChild(div);
+  });
+}
+
+// ── Gaze Emotion bars (5-class) ───────────────────────────────────────────────
+function makeEmoBars(containerId, activeEmo, color) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  EMO_KEYS.forEach(e => {
+    const isActive = e === activeEmo;
+    const baseVal = isActive ? (70 + Math.random()*20) : (Math.random()*30);
+    const row = document.createElement('div');
+    row.className = 'emo-row';
+    row.innerHTML = `
+      <span class="emo-name">${e.toUpperCase()}</span>
+      <div class="emo-bar-wrap"><div class="emo-bar bg-${e}" style="width:${baseVal}%"></div></div>
+      <span class="emo-val">${baseVal.toFixed(0)}%</span>
+    `;
+    el.appendChild(row);
+  });
+}
+
+// ── Main update ─────────────────────────────────────────────────────────────────
+function update() {
+  if (idx >= data.length) idx = 0;
+  const row = data[idx];
+  frame++;
+  if (!startTime) startTime = Date.now();
+
+  // ── EEG: 3-class zone ──────────────────────────────────────────────────────
+  const zoneRaw = (row.eeg_zone || 'NEG-LOW').trim().toUpperCase();
+  const zone    = EEG_ZONE_META[zoneRaw] ? zoneRaw : 'NEG-LOW';
+  const zmeta   = EEG_ZONE_META[zone];
+
+  // ── Eye gaze: 5-class emotion ──────────────────────────────────────────────
+  const eymoRaw = (row.eye_emotion || row.emotion || '').toLowerCase().replace(/_emotion_rating/g,'').trim();
+  const eymo    = EMOTION_META[eymoRaw] ? eymoRaw : 'neutral';
+  const eymeta  = EMOTION_META[eymo];
+
+  // ── Fusion logic — score-based Bayesian-style decision fusion ────────────────
+  //
+  // Step 1: EEG zone → prior probability distribution over 5 emotions
+  //   Each zone assigns a prior score to each of the 5 emotions based on
+  //   how plausible that emotion is given the zone.
+  //   NEG-LOW  → sad is very likely, others near-zero
+  //   NEG-HIGH → fear and anger likely, rest near-zero
+  //   MIXED    → disgust, happy, anger likely; sad/fear low
+  //
+  // Step 2: Eye gaze → likelihood distribution over 5 emotions
+  //   The predicted gaze emotion gets high likelihood; others get small
+  //   residual likelihoods (softmax-like spread).
+  //
+  // Step 3: Element-wise multiply prior × likelihood → joint score
+  //   Normalise → posterior distribution.
+  //   argmax posterior = fused emotion (can differ from either input!)
+  //
+  const eegConf  = parseFloat(row.eegConf) || (72 + Math.random()*18);
+  const eyeConf  = parseFloat(row.eyeConf) || (70 + Math.random()*20);
+
+  // EEG zone priors (index order: sad, anger, fear, disgust, happy)
+  const EEG_PRIOR = {
+    'NEG-LOW':  { sad:0.75, anger:0.08, fear:0.10, disgust:0.04, happy:0.03 },
+    'NEG-HIGH': { sad:0.07, anger:0.40, fear:0.43, disgust:0.06, happy:0.04 },
+    'MIXED':    { sad:0.05, anger:0.25, fear:0.07, disgust:0.35, happy:0.28 },
+  };
+  const prior = EEG_PRIOR[zone];
+
+  // Scale priors by EEG confidence (high conf → sharper prior)
+  const eegW = eegConf / 100;
+  const scaledPrior = {};
+  EMO_KEYS.forEach(e => {
+    // Blend between sharp prior and uniform (1/5) based on confidence
+    scaledPrior[e] = eegW * prior[e] + (1 - eegW) * 0.2;
+  });
+
+  // Gaze likelihood: predicted emotion gets high score, others get residual
+  const eyeW = eyeConf / 100;
+  const gazeLikelihood = {};
+  EMO_KEYS.forEach(e => {
+    gazeLikelihood[e] = (e === eymo)
+      ? eyeW * 0.80 + 0.10          // high peak for predicted emotion
+      : (1 - eyeW * 0.80) / (EMO_KEYS.length - 1) * 0.9; // small residual
+  });
+
+  // Joint score = prior × likelihood, normalised
+  const joint = {};
+  let jointSum = 0;
+  EMO_KEYS.forEach(e => {
+    joint[e] = scaledPrior[e] * gazeLikelihood[e];
+    jointSum += joint[e];
+  });
+  EMO_KEYS.forEach(e => { joint[e] /= jointSum; }); // normalise to sum=1
+
+  // Fused emotion = argmax of joint posterior
+  const fumo = EMO_KEYS.reduce((best, e) => joint[e] > joint[best] ? e : best, EMO_KEYS[0]);
+  const fumeta = EMOTION_META[fumo];
+
+  // Fused confidence = posterior probability of winning emotion × 100
+  const fuseConf = Math.round(joint[fumo] * 100);
+
+  // Compatible flag: gaze and EEG zone agree on same emotion family
+  const compatible = zmeta.compatibles.includes(eymo);
+
+  // Expose joint scores for fusion bar display
+  const fusionScores = joint;
+
+  const delta = parseFloat(row.delta) || 0.5;
+  const theta = parseFloat(row.theta) || 0.1;
+  const alpha = parseFloat(row.alpha) || 0.05;
+  const beta  = parseFloat(row.beta1 || row.beta) || 0.03;
+  const pupil = parseFloat(row.avg_pupil || row.pupil) || 3.5;
+  const sacc  = parseFloat(row.saccade_speed || row.sacc) || 3.0;
+  const gx    = parseFloat(row.avg_x || row.x) || 0.5;
+  const gy    = parseFloat(row.avg_y || row.y) || 0.5;
+  const band  = parseFloat(row.TotalBandPower || row.band) || 2.0;
+
+  // EEG wave: oscillation shaped by band powers
+  const newVal = (delta*0.4 + theta*0.3 - alpha*0.2 - beta*0.1) * (0.8 + Math.random()*0.4) - 0.3;
+  eegHistory.push(newVal); eegHistory.shift();
+
+  // Gaze points
+  gazePoints.push({x:gx, y:gy});
+  if (gazePoints.length > 20) gazePoints.shift();
+
+  // ── Update EEG panel (shows 3-class zone, not a fake 5-emotion) ──
+  // Zone colour: use its mapped color
+  const zoneColorMap = { 'NEG-LOW':'sad', 'NEG-HIGH':'fear', 'MIXED':'disgust' };
+  const zoneCls = zoneColorMap[zone];
+  document.getElementById('eegOrb').textContent = zmeta.emoji;
+  document.getElementById('eegOrb').className = `emotion-orb shadow-${zoneCls}`;
+  document.getElementById('eegOrb').style.background = `radial-gradient(circle, ${zmeta.color}33, transparent)`;
+  document.getElementById('eegEmoName').textContent = zone;
+  document.getElementById('eegEmoName').className = `emotion-name c-${zoneCls}`;
+  document.getElementById('eegConfBar').style.width = eegConf + '%';
+  document.getElementById('eegConfBar').className = `conf-bar bg-${zoneCls}`;
+  document.getElementById('eegConfPct').textContent = Math.round(eegConf) + '%';
+  document.getElementById('eegDelta').textContent = delta.toFixed(3);
+  document.getElementById('eegTheta').textContent = theta.toFixed(3);
+  document.getElementById('eegAlpha').textContent = alpha.toFixed(4);
+  document.getElementById('eegBeta').textContent = beta.toFixed(4);
+  // EEG bars show zone probability across 3 zones
+  makeEegZoneBars('eegBars', zone);
+  drawEEG(zmeta.color);
+
+  // ── Update Eye panel (full 5-emotion) ──
+  document.getElementById('eyeOrb').textContent = eymeta.emoji;
+  document.getElementById('eyeOrb').className = `emotion-orb shadow-${eymo}`;
+  document.getElementById('eyeOrb').style.background = `radial-gradient(circle, ${eymeta.color}33, transparent)`;
+  document.getElementById('eyeEmoName').textContent = eymo.toUpperCase();
+  document.getElementById('eyeEmoName').className = `emotion-name c-${eymo}`;
+  document.getElementById('eyeConfBar').style.width = eyeConf + '%';
+  document.getElementById('eyeConfBar').className = `conf-bar bg-${eymo}`;
+  document.getElementById('eyeConfPct').textContent = Math.round(eyeConf) + '%';
+  document.getElementById('eyePupil').textContent = pupil.toFixed(2);
+  document.getElementById('eyeSacc').textContent = sacc.toFixed(2);
+  document.getElementById('eyeX').textContent = gx.toFixed(3);
+  document.getElementById('eyeY').textContent = gy.toFixed(3);
+  makeEmoBars('eyeBars', eymo, eymeta.color);
+  drawGaze(eymeta.color);
+
+  // ── Update Fuse panel ──
+  // "CHANNELS AGREE" = gaze emotion is compatible with EEG zone
+  document.getElementById('fuseOrb').textContent = fumeta.emoji;
+  document.getElementById('fuseOrb').className = `emotion-orb fuse shadow-${fumo}`;
+  document.getElementById('fuseOrb').style.background = `radial-gradient(circle, ${fumeta.color}44, transparent)`;
+  document.getElementById('fuseEmoName').textContent = fumo.toUpperCase();
+  document.getElementById('fuseEmoName').className = `emotion-name fuse c-${fumo}`;
+  document.getElementById('fuseConfBar').style.width = Math.max(0,fuseConf) + '%';
+  document.getElementById('fuseConfBar').className = `conf-bar bg-${fumo}`;
+  document.getElementById('fuseConfPct').textContent = Math.max(0,fuseConf) + '%';
+  document.getElementById('agreeBadge').innerHTML = compatible
+    ? `<span class="agree-badge agree-yes">✓ ZONE CONFIRMS GAZE</span>`
+    : `<span class="agree-badge agree-no">⚡ ZONE–GAZE DIVERGENCE</span>`;
+
+  // Render fusion posterior bars (all 5 emotions)
+  const fuseBarsEl = document.getElementById('fuseBars');
+  fuseBarsEl.innerHTML = '';
+  EMO_KEYS.forEach(e => {
+    const pct = Math.round(fusionScores[e] * 100);
+    const isWinner = e === fumo;
+    const div = document.createElement('div');
+    div.className = 'emo-row';
+    div.innerHTML = `
+      <span class="emo-name" style="${isWinner?'color:var(--glow-fuse);font-weight:700;':''}">${e.toUpperCase()}</span>
+      <div class="emo-bar-wrap">
+        <div class="emo-bar bg-${e}" style="width:${pct}%;${isWinner?'box-shadow:0 0 6px currentColor;':''}"></div>
+      </div>
+      <span class="emo-val" style="${isWinner?'color:var(--glow-fuse);':''}">${pct}%</span>
+    `;
+    fuseBarsEl.appendChild(div);
+  });
+
+  // Stats
+  document.getElementById('statFrame').textContent = String(frame).padStart(4,'0');
+  document.getElementById('statAgree').textContent = compatible ? 'ALIGNED' : 'DIVERGE';
+  document.getElementById('statAgree').style.color = compatible ? 'var(--disgust)' : 'var(--anger)';
+  document.getElementById('statBand').textContent = band.toFixed(3);
+  document.getElementById('statPupil').textContent = pupil.toFixed(2) + ' mm';
+  document.getElementById('statSacc').textContent = sacc.toFixed(2) + ' °/s';
+
+  // Frame counter
+  document.getElementById('frameCounter').textContent = `FRAME ${String(frame).padStart(4,'0')}`;
+  document.getElementById('tsDisplay').textContent = `T+${((Date.now()-startTime)/1000).toFixed(1)}s`;
+  document.getElementById('rowIdx').textContent = `${idx+1} / ${data.length}`;
+
+  // Timeline (fused = fine-grained gaze output)
+  history.unshift({ time: `+${((Date.now()-startTime)/1000).toFixed(1)}s`, emo: fumo, zone });
+  if (history.length > 8) history.pop();
+  const tl = document.getElementById('timeline');
+  tl.innerHTML = history.map(h => `
+    <div class="tl-item">
+      <div class="tl-dot bg-${h.emo}"></div>
+      <span class="tl-time">${h.time}</span>
+      <span class="tl-emo c-${h.emo}">${h.emo.toUpperCase()}</span>
+    </div>
+  `).join('');
+
+  // Data table row — EEG col shows zone, Eye col shows emotion, Fused = emotion
+  const dr = document.getElementById('dataRows');
+  const newRow = document.createElement('div');
+  newRow.className = 'ds-row new-row';
+  newRow.innerHTML = `
+    <span>${String(frame).padStart(4,'0')}</span>
+    <span class="c-${zoneCls}">${zone}</span>
+    <span class="c-${eymo}">${eymo}</span>
+    <span class="c-${fumo}">${fumo}</span>
+    <span style="color:${compatible?'var(--disgust)':'var(--anger)'}">${compatible?'✓':'⚡'}</span>
+  `;
+  dr.insertBefore(newRow, dr.firstChild);
+  if (dr.children.length > 8) dr.removeChild(dr.lastChild);
+
+  idx++;
+}
+
+// ── Controls ─────────────────────────────────────────────────────────────────────
+function start() {
+  if (timer) return;
+  if (!startTime) startTime = Date.now();
+  const interval = parseInt(document.getElementById('speedSel').value);
+  timer = setInterval(update, interval);
+}
+function stop() {
+  clearInterval(timer); timer = null;
+}
+
+document.getElementById('btnPlay').addEventListener('click', start);
+document.getElementById('btnStop').addEventListener('click', stop);
+document.getElementById('speedSel').addEventListener('change', () => {
+  if (timer) { stop(); start(); }
+});
+
+// CSV upload
+document.getElementById('csvFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const parsed = parseCSV(ev.target.result);
+      if (parsed.length === 0) throw new Error('No valid rows');
+      data = parsed; idx = 0; frame = 0; startTime = null;
+      gazePoints = []; eegHistory = new Array(80).fill(0); history = [];
+      document.getElementById('uploadStatus').textContent = `Loaded: ${file.name} · ${parsed.length} samples`;
+    } catch(err) {
+      document.getElementById('uploadStatus').textContent = `Error: ${err.message}`;
+    }
+  };
+  reader.readAsText(file);
+});
+
+// Auto-start on load
+setTimeout(() => { start(); }, 600);
+</script>
+</body>
+</html>
