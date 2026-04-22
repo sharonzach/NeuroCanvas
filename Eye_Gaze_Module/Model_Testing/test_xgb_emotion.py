@@ -20,7 +20,7 @@ import joblib
 
 # Load model
 model, le, feature_cols, scaler = joblib.load(
-    r"E:\Drive E files\MAJOR PROJECT\eyegaze_emotion_project\nimhans\xgb_saccade_model.pkl"
+    r"xgb_saccade_model.pkl"
 )
 
 # Scale test data
