@@ -26,6 +26,41 @@ The system uses gaze coordinates and pupil dilation data to classify emotions in
 - saccade_speed → Eye movement speed  
 
 ---
+## 📊 Dataset Collection
+
+The eye-gaze dataset was collected at the **National Institute of Mental Health and Neurosciences (NIMHANS), Bengaluru** using a **Tobii Eye Tracker**.
+
+### Data Details:
+- Participants: 4 subjects
+- Data format: Excel (.xlsx)
+- Signals captured:
+  - Left & right gaze coordinates
+  - Pupil diameter
+  - Timestamps
+  - Stimulus ID
+
+---
+
+## ⚙️ Preprocessing Pipeline
+
+The raw eye-tracking data was preprocessed using the following steps:
+
+1. **Data Integration**
+   - Combined multiple participant files into a single dataset
+
+2. **Timestamp Processing**
+   - Converted device and system timestamps to datetime format
+
+3. **Data Cleaning**
+   - Removed rows with missing gaze or pupil data
+
+4. **Feature Engineering**
+   - Average pupil diameter
+   - Average gaze position (X, Y)
+   - Extracted gaze coordinates from raw tuple strings
+
+5. **Final Output**
+   - Saved as: Data/preprocessed_gaze_data.csv
 
 ## 🧠 Models Used
 
