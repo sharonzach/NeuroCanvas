@@ -79,7 +79,7 @@ The raw eye-tracking data was preprocessed using the following steps:
 <img src="Outputs/rf_confusion.png" width="400"/>
 
 ### XGBoost
-<img src="Model_Output/xgb_confusion_matrix.png" width="400"/>
+<img src="Model_Outputs/xgb_confusion_matrix.png" width="400"/>
 
 ### MLP
 <img src="Outputs/mlp_confusion.png" width="400"/>
