@@ -41,10 +41,10 @@ This project combines **deep neural insights** with **real-time behavioral signa
 
 ### 📊 Outputs
 
-<img src="EEG_Module/outputs/confusion_matrix.png" width="400"/>
-<img src="EEG_Module/outputs/roc_curves.png" width="400"/>
-<img src="EEG_Module/outputs/feature_importance.png" width="400"/>
-<img src="EEG_Module/outputs/tsne_clusters.png" width="400"/>
+<img src="EEG_Module/Output/confusion_matrix.png" width="400"/>
+<img src="EEG_Module/Output/roc_curves.png" width="400"/>
+<img src="EEG_Module/Output/feature_importance.png" width="400"/>
+<img src="EEG_Module/Output/tsne_clusters.png" width="400"/>
 
 ---
 
@@ -129,7 +129,6 @@ Due to restricted access to real-time EEG data, a **synthetic fusion approach** 
 
 ## 📂 Project Structure
 NeuroCanvas/
-│
 ├── EEG_Module/
 ├── Eye_Gaze_Module/
 ├── Fusion_Module/
