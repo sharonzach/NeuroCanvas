@@ -16,8 +16,8 @@ from imblearn.over_sampling import SMOTE
 # 1 FILE PATHS
 # ---------------------------------------------------
 
-eeg_path = "/serverdata/ccshome/anjanasinha/NAS/DreamData/DSU/all_eegfeatures_v2.csv"
-label_path = "/serverdata/ccshome/anjanasinha/NAS/DreamData/DSU/dream_emotions_v2.csv"
+eeg_path = "EEG PATH"
+label_path = "LABEL PATH"
 
 print("Loading datasets...")
 
@@ -193,7 +193,7 @@ if "Unnamed: 0" in processed.columns:
 # 13 SAVE DATASET
 # ---------------------------------------------------
 
-output_path = "/serverdata/ccshome/anjanasinha/NAS/DreamData/DSU/preprocessed_v2.csv"
+output_path = "preprocessed_v2.csv"
 
 processed.to_csv(output_path, index=False)
 
