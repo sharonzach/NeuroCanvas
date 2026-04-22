@@ -21,17 +21,17 @@ This module predicts emotional states from EEG features using an advanced XGBoos
 
 ## Outputs
 
-### Confusion Matrix
-![Confusion](Output/confusion_matrix.png)
+<h3>Confusion Matrix</h3>
+<img src="Output/confusion_matrix.png" width="400"/>
 
-### ROC Curves
-![ROC](Output/roc_curves.png)
+<h3>ROC Curves</h3>
+<img src="Output/roc_curves.png" width="400"/>
 
-### Feature Importance
-![Importance](Output/feature_importance.png)
+<h3>Feature Importance</h3>
+<img src="Output/feature_importance.png" width="400"/>
 
-### t-SNE Clustering
-![TSNE](Output/tsne_clusters.png)
+<h3>t-SNE Clustering</h3>
+<img src="Output/tsne_clusters.png" width="400"/>
 
 ## Model Details
 - Algorithm: XGBoost
