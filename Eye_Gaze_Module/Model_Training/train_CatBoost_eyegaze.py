@@ -1,6 +1,7 @@
 # ==========================================================
 # Eye Gaze Emotion Classification using CatBoost (~94% accuracy)
-# Confusion Matrix + Feature Importance + Emotion Classifier Report
+# Confusion Matrix + Feature Importance + Emotion Report
+# Saves Model for Testing
 # ==========================================================
 
 import pandas as pd
@@ -11,18 +12,18 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import joblib
 
-
 # -------------------------------
 # 1. Load Dataset
 # -------------------------------
 data = pd.read_csv("augmented_gaze_data_balanced.csv")
+
 # -------------------------------
 # 2. Define Features and Target
 # -------------------------------
 X = data.drop('Emotion', axis=1)
 y = data['Emotion']
 
-# Identify categorical columns (use if present in data)
+# Identify categorical columns
 cat_features = ['Subject', 'stimulus_id']
 
 # -------------------------------
@@ -48,7 +49,13 @@ model = CatBoostClassifier(
 # -------------------------------
 # 5. Train Model
 # -------------------------------
-model.fit(X_train, y_train, cat_features=cat_features, eval_set=(X_test, y_test), use_best_model=True)
+model.fit(
+    X_train,
+    y_train,
+    cat_features=cat_features,
+    eval_set=(X_test, y_test),
+    use_best_model=True
+)
 
 # -------------------------------
 # 6. Predictions & Accuracy
@@ -58,18 +65,31 @@ acc = accuracy_score(y_test, y_pred)
 print(f"\n✅ Model Accuracy: {acc*100:.2f}%")
 
 # -------------------------------
-# 7. Confusion Matrix
+# 7. Confusion Matrix (with labels)
 # -------------------------------
-cm = confusion_matrix(y_test, y_pred)
+labels = sorted(y.unique())
+
+cm = confusion_matrix(y_test, y_pred, labels=labels)
+
 plt.figure(figsize=(8, 6))
-sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+sns.heatmap(
+    cm,
+    annot=True,
+    fmt='d',
+    cmap='Blues',
+    xticklabels=labels,
+    yticklabels=labels
+)
 plt.title("Confusion Matrix")
-plt.xlabel("Predicted Label")
-plt.ylabel("True Label")
+plt.xlabel("Predicted Emotion")
+plt.ylabel("Actual Emotion")
+
+# SAVE IMAGE
+plt.savefig("confusion_matrix.png")
 plt.show()
 
 # -------------------------------
-# 8. Emotion Classification Report (ADDED)
+# 8. Classification Report
 # -------------------------------
 print("\n===== Emotion Classification Report =====")
 print(classification_report(y_test, y_pred))
@@ -86,10 +106,25 @@ importance_df = pd.DataFrame({
 }).sort_values(by='Importance', ascending=False)
 
 plt.figure(figsize=(8, 5))
-sns.barplot(x='Importance', y='Feature', data=importance_df, palette='cool')
+sns.barplot(
+    x='Importance',
+    y='Feature',
+    data=importance_df,
+    hue='Feature',       # fixes warning
+    dodge=False,
+    legend=False
+)
 plt.title("Feature Importance (CatBoost)")
+
+# SAVE IMAGE
+plt.savefig("feature_importance.png")
 plt.show()
 
 print("\nTop 5 Most Important Features:")
 print(importance_df.head())
+
+# -------------------------------
+# 10. Save Model
+# -------------------------------
 joblib.dump(model, "catboost_model.pkl")
+print("\n✅ Model saved as catboost_model.pkl")
